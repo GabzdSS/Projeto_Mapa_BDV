@@ -143,22 +143,41 @@ html_mapa, resumo_rota = gerar_mapa_filtrado(df_filtrado)
 with open(html_mapa, "r", encoding="utf-8") as f:
     mapa_html = f.read()
 
-# Exibe título
+# --- título
 st.title(f"Mapa BDV - {nome_escolhido} em {data_escolhida}")
 
-# resumo
-for f in resumo_rota["funcionarios"]:
-    st.subheader(f"Resumo - {f['nome']}  -  Veiculo: {f.get('CODIGOATIVO', '')}")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Distância total", f"{f['distancia_km']} km")
-    col2.metric("Duração em Trânsito estimada", f"{f['duracao_min']} min")
-    col3.metric("Marcações", f"{f['batidas']} pontos")
+# --- pega o resumo do funcionário selecionado
+funcs = resumo_rota.get("funcionarios", [])
+f = next((x for x in funcs if x.get("nome") == nome_escolhido), (funcs[0] if funcs else {}))
 
-    if f["batidas"] > 1:
-        st.markdown("**Tempos entre Marcações:**")
-        for i, trecho in enumerate(f["tempos_entre_batidas"], 1):
-            st.write(f"{i}. {trecho['origem']} → {trecho['destino']} = {trecho['minutos']} min")
+# --- métricas
+st.subheader(f"Resumo - {f.get('nome','')}  -  Veículo: {f.get('CODIGOATIVO','')}")
+m1, m2, m3 = st.columns(3)
+m1.metric("Distância total", f"{f.get('distancia_km', 0)} km")
+m2.metric("Duração em Trânsito estimada", f"{f.get('duracao_min', 0)} min")
+m3.metric("Marcações", f"{f.get('batidas', 0)} pontos")
 
+# --- layout lado a lado (mapa à esquerda, tempos à direita)
+col_mapa, col_batidas = st.columns([3, 1])
 
-# Exibe mapa
-st.components.v1.html(mapa_html, height=800, width=1200, scrolling=False)
+with col_mapa:
+    # deixe sem width pra ocupar a largura da coluna
+    st.components.v1.html(mapa_html, height=800, width=1600, scrolling=False)
+
+with col_batidas:
+    st.markdown("### Tempos entre Marcações:")
+    lista = f.get("tempos_entre_batidas", [])
+    if lista:
+        for i, trecho in enumerate(lista, start=1):
+            # montagem segura: se API falhou, mostra “—”
+            dist_txt = f"{trecho['dist_km']} km" if trecho.get("dist_km") is not None else "—"
+            dur_est_txt = f"{trecho['dur_est_min']} min" if trecho.get("dur_est_min") is not None else "—"
+
+            st.write(
+                f"{i}. {trecho['origem']} → {trecho['destino']}  "
+                f"= **{trecho['minutos']} min**  |  "
+                f"**{dist_txt}**  |  **{dur_est_txt} estim.**"
+            )
+    else:
+        st.caption("Sem deslocamentos calculados para esse dia.")
+

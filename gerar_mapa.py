@@ -92,17 +92,44 @@ def gerar_mapa_filtrado(df):
         pontos = grupo[["LAT_LANCADA", "LONG_LANCADA"]]
         coords = [(lon, lat) for lat, lon in pontos.values.tolist()]
 
-        # Tempos entre marcações
+        from functools import lru_cache
+
+        # cache simples pra evitar chamadas repetidas à API
+        @lru_cache(maxsize=2048)
+        def _rota_trecho_ors(lon1, lat1, lon2, lat2):
+            try:
+                rota = client.directions(
+                    coordinates=[(lon1, lat1), (lon2, lat2)],
+                    profile="driving-car",
+                    format="geojson"
+                )
+                props = rota["features"][0]["properties"]["summary"]
+                return float(props["distance"]), float(props["duration"])  # metros, segundos
+            except Exception:
+                return None, None
+
+        # ...dentro do loop por funcionário:
+        grupo = grupo.sort_values("DTHRCHEGADA").copy()
+        grupo["DTHRCHEGADA"] = pd.to_datetime(grupo["DTHRCHEGADA"])
+
         tempos_entre_batidas = []
+
         for i in range(1, len(grupo)):
             t1 = grupo.iloc[i - 1]["DTHRCHEGADA"]
             t2 = grupo.iloc[i]["DTHRCHEGADA"]
-            duracao = t2 - t1
-            minutos = int(duracao.total_seconds() // 60)
+            dt_min = int((t2 - t1).total_seconds() // 60)
+
+            lat1, lon1 = float(grupo.iloc[i - 1]["LAT_LANCADA"]), float(grupo.iloc[i - 1]["LONG_LANCADA"])
+            lat2, lon2 = float(grupo.iloc[i]["LAT_LANCADA"]), float(grupo.iloc[i]["LONG_LANCADA"])
+
+            dist_m, dur_s = _rota_trecho_ors(lon1, lat1, lon2, lat2)
+
             tempos_entre_batidas.append({
                 "origem": t1.strftime("%H:%M"),
                 "destino": t2.strftime("%H:%M"),
-                "minutos": minutos
+                "minutos": dt_min,                               # diferença entre marcações
+                "dist_km": round(dist_m / 1000, 2) if dist_m else None,
+                "dur_est_min": int(dur_s // 60) if dur_s else None
             })
 
         try:
