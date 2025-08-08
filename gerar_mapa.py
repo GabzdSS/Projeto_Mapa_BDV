@@ -126,7 +126,8 @@ def gerar_mapa_filtrado(df):
                 "duracao_min": int(duracao_segundos // 60),
                 "distancia_km": round(distancia_metros / 1000, 2),
                 "batidas": len(grupo),
-                "tempos_entre_batidas": tempos_entre_batidas
+                "tempos_entre_batidas": tempos_entre_batidas,
+                "CODIGOATIVO": str(grupo["CODIGOATIVO"].iloc[0]) if "CODIGOATIVO" in grupo.columns else ""
             })
 
         except Exception as e:

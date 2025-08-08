@@ -148,7 +148,7 @@ st.title(f"Mapa BDV - {nome_escolhido} em {data_escolhida}")
 
 # resumo
 for f in resumo_rota["funcionarios"]:
-    st.subheader(f"Resumo - {f['nome']}")
+    st.subheader(f"Resumo - {f['nome']}  -  Veiculo: {f.get('CODIGOATIVO', '')}")
     col1, col2, col3 = st.columns(3)
     col1.metric("Distância total", f"{f['distancia_km']} km")
     col2.metric("Duração em Trânsito estimada", f"{f['duracao_min']} min")
